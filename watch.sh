@@ -9,27 +9,43 @@ if ! command -v inotifywait >/dev/null 2>&1; then
     echo "inotifywait not found. Please install inotify-tools."
     exit 1
 fi
+# Check Script exists
+if [ ! -f "$SCRIPT_TO_RUN" ]; then
+    echo "Script not found."
+    exit 1
+fi
 
-echo "Watching $WATCH_DIR for new directories and files..."
+echo "$(date) - WATCHDIR: Started"
+echo "$(date) - WATCHDIR: Watching $WATCH_DIR for new directories and files..."
 
 # Watch recursively for directory creation and file close_write events.
-inotifywait -m -r -e create -e close_write --format '%e %w%f' "$WATCH_DIR" | while read EVENT FULLPATH; do
+inotifywait -q -m -r -e create -e close_write --format '%e %w%f' "$WATCH_DIR" | while read EVENT FULLPATH; do
     # If a directory is created, trigger with -d
     if echo "$EVENT" | grep -q "CREATE" && [ -d "$FULLPATH" ]; then
-        echo "Creating Directory: $FULLPATH"
+        REMOTE=$(basename "$FULLPATH")
+	echo "$(date) - WATCHDIR: Directory found - Creating: $REMOTE"
+	echo "$(date) - WATCHDIR: Running Script: $SCRIPT_TO_RUN -f $FULLPATH"
         "$SCRIPT_TO_RUN" -d "$FULLPATH"
+        echo "$(date) - WATCHDIR: Directory created: $REMOTE"
     fi
 
     # For files: on close_write event, check that it's a file (not a directory)
     if echo "$EVENT" | grep -q "CLOSE_WRITE" && [ -f "$FULLPATH" ]; then
-        echo "File completed: $FULLPATH"
-        # Brief pause to ensure the file is fully written
-        sleep 1
-        # Extra check that the file is no longer in use
-        if lsof "$FULLPATH" >/dev/null 2>&1; then
-            echo "File $FULLPATH is still in use, skipping."
-            continue
-        fi
+	REMOTE=$(basename "$FULLPATH")
+	echo
+        echo "$(date) - WATCHDIR: File found - Copying: $REMOTE"
+        sleep 5
+    	while lsof "$FULLPATH" >/dev/null 2>&1; do
+         echo "$(date) - WATCHDIR: File $FULLPATH is still in use, waiting..."
+         sleep 5
+        done
+	echo "$(date) - WATCHDIR: Running Script: $SCRIPT_TO_RUN -f $FULLPATH"
+	echo
         "$SCRIPT_TO_RUN" -f "$FULLPATH"
-    fi
+        echo "$(date) - WATCHDIR: Completed: $REMOTE"
+	sleep 2
+	echo "$(date) - WATCHDIR: Looping..."
+	echo
+fi
+
 done
