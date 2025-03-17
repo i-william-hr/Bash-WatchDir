@@ -38,8 +38,8 @@ strip_local_root() {
 if [ "$MODE" == "dir" ]; then
     # Create a remote directory.
     REMOTE_DIR=$(strip_local_root "$TARGET")
-    echo "Creating remote directory: $REMOTE_DIR on $FTP_HOST"
-    curl "ftp://$FTP_HOST/" --user "$FTP_USER:$FTP_PASS" --quote "MKD $REMOTE_DIR"
+    echo "$(date) - FTP: Creating remote directory: $REMOTE_DIR on $FTP_HOST"
+    curl -s "ftp://$FTP_HOST/" --user "$FTP_USER:$FTP_PASS" --quote "MKD $REMOTE_DIR" >/dev/null 2>&1
 elif [ "$MODE" == "file" ]; then
     # Upload a file. If the file is in a subdirectory relative to LOCAL_ROOT, ensure the directory exists.
     LOCAL_FILE="$TARGET"
@@ -51,16 +51,15 @@ elif [ "$MODE" == "file" ]; then
 
     # If the file is in a subdirectory, ensure that directory exists on the FTP server.
     if [ "$REMOTE_DIR" != "." ]; then
-        echo "Ensuring remote directory $REMOTE_DIR exists on $FTP_HOST"
-        curl "ftp://$FTP_HOST/" --user "$FTP_USER:$FTP_PASS" --quote "MKD $REMOTE_DIR"
+        echo "$(date) - FTP: Ensuring remote directory $REMOTE_DIR exists on $FTP_HOST"
+        curl -s "ftp://$FTP_HOST/" --user "$FTP_USER:$FTP_PASS" --quote "MKD $REMOTE_DIR"
         REMOTE_URI="ftp://$FTP_HOST/$REMOTE_DIR/$REMOTE_FILE"
     else
         REMOTE_URI="ftp://$FTP_HOST/$REMOTE_FILE"
     fi
 
-    echo "Uploading $LOCAL_FILE to $REMOTE_URI"
-    curl -T "$LOCAL_FILE" "$REMOTE_URI" --user "$FTP_USER:$FTP_PASS"
+    echo "$(date) - FTP: Uploading $LOCAL_FILE to $REMOTE_URI"
+    curl -s -T "$LOCAL_FILE" "$REMOTE_URI" --user "$FTP_USER:$FTP_PASS"
 else
     usage
 fi
-root@jerusalem:~/scripts#
